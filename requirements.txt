@@ -1,0 +1,6 @@
+langchain
+openai>=1.0.0
+python-dotenv
+flask
+jira
+arrow

@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jira Agentic AI - 智能工作查詢</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .search-section {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            margin-bottom: 30px;
+        }
+
+        .search-input-group {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 15px 20px;
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .search-btn {
+            padding: 15px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .search-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .search-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .select-group {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            align-items: center;
+        }
+
+        .select-group select {
+            padding: 10px 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 16px;
+            background-color: white;
+            cursor: pointer;
+        }
+
+        .select-group button {
+            flex-shrink: 0;
+        }
+
+        .okr-input-group {
+            margin-top: 20px;
+        }
+
+        .okr-input-group textarea {
+            width: 100%;
+            padding: 15px 20px;
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            font-size: 16px;
+            min-height: 80px;
+            resize: vertical;
+            margin-bottom: 15px;
+        }
+
+        .okr-input-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .results-section {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            display: none;
+        }
+
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f1f3f4;
+        }
+
+        .results-title {
+            font-size: 1.5rem;
+            color: #333;
+        }
+
+        .results-count {
+            background: #667eea;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+        }
+
+        .jql-section {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 25px;
+        }
+
+        .jql-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #495057;
+        }
+
+        .jql-query {
+            background: #343a40;
+            color: #f8f9fa;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            margin: 5px 0;
+        }
+
+        .issue-card {
+            border: 1px solid #e9ecef;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 15px;
+            transition: all 0.3s;
+        }
+
+        .issue-card:hover {
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .issue-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+
+        .issue-key {
+            background: #667eea;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 15px;
+            font-size: 0.85rem;
+            font-weight: bold;
+        }
+
+        .issue-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .issue-meta {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-bottom: 15px;
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .issue-link {
+            display: inline-block;
+            background: #28a745;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 5px;
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: background 0.3s;
+        }
+
+        .issue-link:hover {
+            background: #218838;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 Jira Agentic AI</h1>
+            <p>用自然語言查詢您的工作記錄</p>
+        </div>
+
+        <div class="search-section">
+            <div class="search-input-group">
+                <input type="text" id="searchInput" class="search-input"
+                    placeholder="例如：我完成了哪些任務？專案 ABC 中的 Bug？或解掉 10 個 Bug" autofocus>
+                <button id="searchBtn" class="search-btn">🔍 搜尋</button>
+            </div>
+        </div>
+
+        <div id="resultsSection" class="results-section">
+            <div class="results-header">
+                <div class="results-title" id="resultsTitle">查詢結果</div>
+                <div class="results-count" id="resultsCount">0 個項目</div>
+            </div>
+
+            <div id="jqlSection" class="jql-section">
+                <div class="jql-title">🔧 使用的 JQL 查詢:</div>
+                <div id="jqlQueries"></div>
+            </div>
+
+            <div id="resultsContainer"></div>
+        </div>
+    </div>
+
+    <script>
+        const searchInput = document.getElementById('searchInput');
+        const searchBtn = document.getElementById('searchBtn');
+
+        const resultsSection = document.getElementById('resultsSection');
+        const resultsTitle = document.getElementById('resultsTitle');
+        const resultsCount = document.getElementById('resultsCount');
+        const jqlQueries = document.getElementById('jqlQueries');
+        const resultsContainer = document.getElementById('resultsContainer');
+
+        // 搜尋功能 (通用，可處理不同輸入來源)
+        async function performSearch(query) {
+            if (!query.trim()) {
+                showError('請輸入查詢內容');
+                return;
+            }
+
+            searchBtn.disabled = true;
+            searchBtn.textContent = '🔄 搜尋中...';
+
+            showLoading();
+
+            try {
+                const response = await fetch('/api/search', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ query: query })
+                });
+
+                const data = await response.json();
+
+                if (data.error) {
+                    showError(data.error);
+                } else {
+                    showResults(data);
+                }
+            } catch (error) {
+                showError('網路錯誤，請稍後重試');
+            } finally {
+                searchBtn.disabled = false;
+                searchBtn.textContent = '🔍 搜尋';
+            }
+        }
+
+        // 快速按鈕和主搜尋框事件監聽 (調整為呼叫 performSearch)
+        searchBtn.addEventListener('click', () => {
+            performSearch(searchInput.value);
+        });
+
+        searchInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                performSearch(searchInput.value);
+            }
+        });
+
+        // 顯示載入中
+        function showLoading() {
+            resultsSection.style.display = 'block';
+            resultsContainer.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p style="margin-top: 15px;">正在查詢中...</p>
+                </div>
+            `;
+        }
+
+        // 顯示錯誤
+        function showError(message) {
+            resultsSection.style.display = 'block';
+            resultsContainer.innerHTML = `
+                <div class="error">
+                    ❌ ${message}
+                </div>
+            `;
+        }
+
+        // 顯示結果
+        function showResults(data) {
+            resultsSection.style.display = 'block';
+            resultsTitle.textContent = `🎯 查詢: ${data.query}`;
+            resultsCount.textContent = `${data.total_count} 個項目`;
+
+            // 顯示 JQL 查詢
+            jqlQueries.innerHTML = data.jql_queries.map((jql, index) =>
+                `<div class="jql-query">${index + 1}. ${jql}</div>`
+            ).join('');
+
+            // 顯示結果
+            if (data.results.length === 0) {
+                resultsContainer.innerHTML = '<p style="text-align: center; padding: 40px; color: #666;">沒有找到符合條件的工作項目</p>';
+                return;
+            }
+
+            resultsContainer.innerHTML = data.results.map((issue, index) => `
+                <div class="issue-card">
+                    <div class="issue-header">
+                        <span class="issue-key">${issue.key}</span>
+                    </div>
+                    <div class="issue-title">${issue.summary}</div>
+                    <div class="issue-meta">
+                        <div>📁 專案: ${issue.project}</div>
+                        <div>🏷️ 類型: ${issue.issuetype}</div>
+                        <div>👤 指派: ${issue.assignee || '未指派'}</div>
+                        <div>📅 更新: ${issue.updated.substring(0, 10)}</div>
+                        ${issue.duration_days !== null ? `<div>⏱️ 完成耗時: ${issue.duration_days} 天</div>` : ''}
+                        ${issue.processing_days !== null ? `<div>🔄 處理中: ${issue.processing_days} 天</div>` : ''}
+                        ${issue.timespent_hours !== null ? `<div>🕐 已花費: ${Math.round(issue.timespent_hours * 10) / 10} 小時</div>` : ''}
+                        ${issue.originalestimate_hours !== null ? `<div>📊 估計: ${Math.round(issue.originalestimate_hours * 10) / 10} 小時</div>` : ''}
+                        ${issue.resolutiondate ? `<div>✅ 完成: ${issue.resolutiondate.substring(0, 10)}</div>` : ''}
+                        ${issue.comment_count !== undefined ? `<div>💬 評論: ${issue.comment_count} 個</div>` : ''}
+                    </div>
+                    <a href="${issue.url}" target="_blank" class="issue-link">🔗 查看詳情</a>
+                </div>
+            `).join('');
+        }
+
+    </script>
+</body>
+
+</html>
