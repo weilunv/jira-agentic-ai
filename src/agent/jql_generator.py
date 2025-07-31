@@ -118,19 +118,23 @@ class JQLGenerator:
                 base_conditions.append(user_query)
                 print(f"用戶條件（OR 連接）: {user_query}")
 
-        # 添加關鍵字條件
-        main_keyword_conditions = entities.get("main_keyword_conditions", [])
-        related_keyword_conditions = entities.get("related_keyword_conditions", [])
-        
-        keyword_conditions = []
-        keyword_conditions.extend(main_keyword_conditions)
-        keyword_conditions.extend(related_keyword_conditions)
-        
-        if keyword_conditions:
-            # 將關鍵字條件用 OR 連接
-            keyword_query = f"({' OR '.join(keyword_conditions)})"
-            base_conditions.append(keyword_query)
-            print(f"添加關鍵字條件: {keyword_query}")
+        # 排除性查詢處理：如果是排除性查詢，不添加關鍵字搜尋條件
+        if intent.is_exclusion:
+            print(f"檢測到排除性查詢，不添加關鍵字搜尋條件。排除關鍵字: {intent.excluded_keywords}")
+        else:
+            # 添加關鍵字條件
+            main_keyword_conditions = entities.get("main_keyword_conditions", [])
+            related_keyword_conditions = entities.get("related_keyword_conditions", [])
+            
+            keyword_conditions = []
+            keyword_conditions.extend(main_keyword_conditions)
+            keyword_conditions.extend(related_keyword_conditions)
+            
+            if keyword_conditions:
+                # 將關鍵字條件用 OR 連接
+                keyword_query = f"({' OR '.join(keyword_conditions)})"
+                base_conditions.append(keyword_query)
+                print(f"添加關鍵字條件: {keyword_query}")
 
         # 構建最終查詢
         if base_conditions:

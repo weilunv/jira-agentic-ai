@@ -38,12 +38,16 @@ class QueryIntent(BaseModel):
     intent_type: str = "search_issues"
     confidence: float = 0.5
     entities: Dict[str, Any] = {}
+    is_exclusion: bool = False  # 是否為排除性查詢
+    excluded_keywords: List[str] = []  # 需要排除的關鍵詞
 
     def model_dump(self):  # 替換 dict() 方法
         return {
             "intent_type": self.intent_type,
             "confidence": self.confidence,
-            "entities": self.entities
+            "entities": self.entities,
+            "is_exclusion": self.is_exclusion,
+            "excluded_keywords": self.excluded_keywords
         }
 
 
@@ -78,6 +82,10 @@ class NaturalLanguageQueryParser:
         "main": ["CHART", "排行榜"],     # 示例關鍵詞
         "related": ["工作"]              # 示例相關詞
     }},
+    "exclusion": {{
+        "is_exclusion": false,           # 是否為排除性查詢
+        "excluded_keywords": []          # 需要排除的關鍵詞
+    }},
     "project": null,                    # 項目名稱（如果查詢中提到）
     "time": {{
         "year": "2025",                  # 必須提取查詢中的年份
@@ -94,14 +102,21 @@ class NaturalLanguageQueryParser:
 注意：
 1. 如果查詢中提到年份（如 2025），必須在 time 中設置對應的值
 2. 如果查詢涉及用戶任務，相應的 user_conditions 必須設為 true
-3. **項目名稱提取規則**：
+3. **排除性查詢識別（最重要）**：
+   - 如果查詢包含「無關」、「以外」、「除了」、「不包括」、「不是」、「非」等詞：
+     * 設定 is_exclusion = true
+     * 把需要排除的關鍵詞放入 excluded_keywords
+     * keywords.main 和 keywords.related 都設為空陣列
+   - 例如：「跟 cron-chart 無關的」→ is_exclusion=true, excluded_keywords=["cron-chart", "cron", "chart"]
+   - 例如：「排行榜以外的工作」→ is_exclusion=true, excluded_keywords=["排行榜", "榜單", "CHART", "chart"]
+4. **項目名稱提取規則**：
    - "In the KFC project" → 提取 "KFC"
    - "KFC project" → 提取 "KFC" 
    - "在 KFC 專案中" → 提取 "KFC"
    - "KFC 專案" → 提取 "KFC"
    - 只提取項目的核心名稱，不包含 "project" 或 "專案" 等詞
-4. 關鍵詞必須準確匹配查詢中的大小寫
-5. **排序詞語不是關鍵詞**：例如查詢 '跟 iOS 有關且處理最久的'，只提取 'iOS' 作為關鍵詞，忽略 '處理最久'
+5. 關鍵詞必須準確匹配查詢中的大小寫
+6. **排序詞語不是關鍵詞**：例如查詢 '跟 iOS 有關且處理最久的'，只提取 'iOS' 作為關鍵詞，忽略 '處理最久'
 
 項目名稱提取示例：
 - "In the KFC project, I participated in tasks" → project: "KFC"
@@ -427,10 +442,19 @@ class NaturalLanguageQueryParser:
             # if user_conditions.get("commenter"):
             #     conditions["user_conditions"].append(f"commentedBy = '{self.jira_username}'")
 
+            # 提取排除性查詢信息
+            exclusion_info = parsed.get("exclusion", {})
+            is_exclusion = exclusion_info.get("is_exclusion", False)
+            excluded_keywords = exclusion_info.get("excluded_keywords", [])
+            
+            print(f"排除性查詢檢測: is_exclusion={is_exclusion}, excluded_keywords={excluded_keywords}")
+            
             return QueryIntent(
                 intent_type="search_issues",
                 confidence=0.9,
-                entities=conditions
+                entities=conditions,
+                is_exclusion=is_exclusion,
+                excluded_keywords=excluded_keywords
             )
 
         except Exception as e:
