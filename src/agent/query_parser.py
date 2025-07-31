@@ -94,9 +94,19 @@ class NaturalLanguageQueryParser:
 注意：
 1. 如果查詢中提到年份（如 2025），必須在 time 中設置對應的值
 2. 如果查詢涉及用戶任務，相應的 user_conditions 必須設為 true
-3. 如果查詢中提到項目名稱（如 "KFC project", "在 KFC 專案中"），必須在 project 中設置項目名稱
+3. **項目名稱提取規則**：
+   - "In the KFC project" → 提取 "KFC"
+   - "KFC project" → 提取 "KFC" 
+   - "在 KFC 專案中" → 提取 "KFC"
+   - "KFC 專案" → 提取 "KFC"
+   - 只提取項目的核心名稱，不包含 "project" 或 "專案" 等詞
 4. 關鍵詞必須準確匹配查詢中的大小寫
-5. **排序詞語不是關鍵詞**：例如查詢 '跟 iOS 有關且處理最久的'，只提取 'iOS' 作為關鍵詞，忽略 '處理最久'""")
+5. **排序詞語不是關鍵詞**：例如查詢 '跟 iOS 有關且處理最久的'，只提取 'iOS' 作為關鍵詞，忽略 '處理最久'
+
+項目名稱提取示例：
+- "In the KFC project, I participated in tasks" → project: "KFC"
+- "Show me tasks in ABC project" → project: "ABC"
+- "在 XYZ 專案中的工作" → project: "XYZ""")
             ])
 
             self.chain = self.analysis_prompt | self.llm
