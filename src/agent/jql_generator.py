@@ -66,8 +66,32 @@ class JQLGenerator:
             keywords = entities['keywords']
             if isinstance(keywords, str):
                 keywords = [keywords]
-            keyword_conditions = []
+            
+            # 過濾通用詞彙，避免將其當作搜索關鍵字
+            common_words = {
+                # 中文通用詞
+                '任務', '工作', '項目', '問題', '需求', '功能', '系統', '平台',
+                '管理', '開發', '設計', '測試', '修復', '優化', '更新', '維護',
+                '實現', '完成', '處理', '解決', '改進', '增加', '減少', '提升',
+                # 英文通用詞
+                'task', 'work', 'project', 'issue', 'feature', 'bug', 'system', 'platform',
+                'management', 'development', 'design', 'test', 'fix', 'optimize', 'update', 'maintain',
+                'implement', 'complete', 'process', 'solve', 'improve', 'add', 'reduce', 'enhance',
+                # 其他通用詞
+                'the', 'and', 'or', 'in', 'on', 'at', 'to', 'for', 'with', 'by', 'from', 'of', 'is', 'are',
+                '的', '和', '或', '在', '於', '為', '與', '由', '從', '是', '有', '沒有'
+            }
+            
+            # 過濾關鍵字
+            filtered_keywords = []
             for keyword in keywords:
+                if keyword and keyword.lower() not in common_words and len(keyword.strip()) > 1:
+                    filtered_keywords.append(keyword)
+            
+
+            
+            keyword_conditions = []
+            for keyword in filtered_keywords:
                 keyword_conditions.append(f"text ~ '{keyword}'")
             if keyword_conditions:
                 jql_parts.append(f"({' OR '.join(keyword_conditions)})")

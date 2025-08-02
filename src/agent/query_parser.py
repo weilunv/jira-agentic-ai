@@ -302,10 +302,14 @@ class NaturalLanguageQueryParser:
             input_variables=["text"],
             template="""
             根據以下查詢，提取相關的 Jira 任務關鍵字。
-            注意：請忽略排序相關的詞語（如：最久、最新、最近、最長時間、處理最久等）。
-            只提取與任務內容相關的技術關鍵字。
+            
+            **重要注意事項：**
+            1. 忽略排序相關的詞語（如：最久、最新、最近、最長時間、處理最久等）
+            2. **不要包含通用詞彙**：任務、工作、項目、Task、Work、Project、Issue、Bug、Feature等
+            3. 只提取具體的技術關鍵字、功能名稱、產品名稱或業務領域詞彙
+            4. 如果查詢太通用或沒有具體關鍵字，返回空字串
 
-            範例：
+            **範例：**
             輸入: "跟 iOS 有關且處理最久的"
             輸出: "iOS, iPhone, iPad, Swift, Objective-C, Xcode, 手機, app, 移動開發"
 
@@ -314,6 +318,9 @@ class NaturalLanguageQueryParser:
 
             輸入: "提升用戶留存率"
             輸出: "用戶留存, 用戶體驗, 活躍用戶, 產品優化, 數據分析, 報告, 行為分析, 儀表板, 忠誠度, app, 功能改進"
+            
+            輸入: "我留言最多的 Task"
+            輸出: ""
 
             目標/任務/查詢: {text}
 
@@ -323,11 +330,20 @@ class NaturalLanguageQueryParser:
         chain = LLMChain(llm=self.llm, prompt=prompt_template)
         try:
             response = chain.run(text=text)
+            # 處理 LLM 返回的關鍵字，過濾空字串和通用詞彙
             keywords = [k.strip() for k in response.split(',') if k.strip()]
+            
+            # 過濾通用詞彙
+            common_words = {
+                '任務', '工作', '項目', '問題', '需求', '功能', '系統', '平台',
+                'task', 'work', 'project', 'issue', 'feature', 'bug', 'system', 'platform'
+            }
+            keywords = [k for k in keywords if k.lower() not in common_words]
+            
             return keywords
         except Exception as e:
             print(f"LLM 處理關鍵字失敗: {e}")
-            return [text] # 失敗時返回原始文本作為關鍵字
+            return [] # 失敗時返回空列表，不再使用原始文本
 
     def parse(self, query: str | dict) -> QueryIntent:
         """解析查詢意圖"""
@@ -380,16 +396,31 @@ class NaturalLanguageQueryParser:
                 conditions = []
                 all_words = set()  # 收集所有單詞
                 
+                # 通用詞彙過濾列表
+                common_words = {
+                    # 中文通用詞
+                    '任務', '工作', '項目', '問題', '需求', '功能', '系統', '平台',
+                    '管理', '開發', '設計', '測試', '修復', '優化', '更新', '維護',
+                    '實現', '完成', '處理', '解決', '改進', '增加', '減少', '提升',
+                    # 英文通用詞
+                    'task', 'work', 'project', 'issue', 'feature', 'bug', 'system', 'platform',
+                    'management', 'development', 'design', 'test', 'fix', 'optimize', 'update', 'maintain',
+                    'implement', 'complete', 'process', 'solve', 'improve', 'add', 'reduce', 'enhance',
+                    # 其他通用詞
+                    'the', 'and', 'or', 'in', 'on', 'at', 'to', 'for', 'with', 'by', 'from', 'of', 'is', 'are',
+                    '的', '和', '或', '在', '於', '為', '與', '由', '從', '是', '有', '沒有'
+                }
+                
                 for keyword in keywords:
                     # 如果是複合關鍵字，拆分成單詞
                     if ' ' in keyword:
                         words = keyword.split()
                         for word in words:
-                            if len(word) > 2:  # 只處理長度大於2的詞
+                            if len(word) > 2 and word.lower() not in common_words:  # 過濾通用詞
                                 all_words.add(word)
                     else:
                         # 單個關鍵字
-                        if len(keyword) > 2:
+                        if len(keyword) > 2 and keyword.lower() not in common_words:  # 過濾通用詞
                             all_words.add(keyword)
                 
                 # 為每個單詞生成大小寫變體的搜尋條件
@@ -548,12 +579,13 @@ class NaturalLanguageQueryParser:
             intent_type = "filter_by_project"
             confidence = max(confidence, 0.8)
 
-        # 5. 根據當前檢測到的意圖，決定是否進行 LLM 關鍵字擴展
-        # 如果沒有強烈指向其他特定意圖（如日期、用戶、狀態、專案），則視為一般搜尋，使用 LLM 擴展關鍵字
-        if intent_type == "search_issues": # 只有當沒有明確篩選條件時才進行 LLM 擴展
+        # 5. 進行 LLM 關鍵字擴展（無論什麼意圖類型都要進行關鍵字過濾）
+        # 即使有明確的篩選條件（時間、用戶、狀態、專案），也可能需要額外的關鍵字搜索
+        if self.llm:
             generated_keywords = self._get_llm_expanded_keywords(query) # 將整個查詢傳給 LLM
             entities['keywords'] = entities.get('keywords', []) + generated_keywords
-            confidence = max(confidence, 0.8) # 提高置信度，因為經過 LLM 處理
+            if intent_type == "search_issues":
+                confidence = max(confidence, 0.8) # 提高置信度，因為經過 LLM 處理
 
         # 6. 提取一般關鍵字 (移除原有簡單關鍵字提取，因為現在會透過 LLM 處理)
         # 由於 LLM 處理已涵蓋，這裡不需要再進行簡單的單詞拆分，除非 LLM 不可用
@@ -561,12 +593,31 @@ class NaturalLanguageQueryParser:
             all_keywords = []
             words = query.split()
             excluded_keywords = set()
+            
+            # 添加時間相關的排除詞彙
             for pattern in self.time_patterns.keys():
                 cleaned_pattern = re.sub(r'[^w\s]', '', pattern)
                 excluded_keywords.update(set(cleaned_pattern.lower().split()))
 
+            # 添加意圖相關的排除詞彙
             for pattern_list in self.intent_patterns.values():
                 excluded_keywords.update(set(k.lower() for k in pattern_list))
+            
+            # 添加通用詞彙過濾列表，避免將通用詞當作關鍵字
+            common_words = {
+                # 中文通用詞
+                '任務', '工作', '項目', '問題', '需求', '功能', '系統', '平台',
+                '管理', '開發', '設計', '測試', '修復', '優化', '更新', '維護',
+                '實現', '完成', '處理', '解決', '改進', '增加', '減少', '提升',
+                # 英文通用詞
+                'task', 'work', 'project', 'issue', 'feature', 'bug', 'system', 'platform',
+                'management', 'development', 'design', 'test', 'fix', 'optimize', 'update', 'maintain',
+                'implement', 'complete', 'process', 'solve', 'improve', 'add', 'reduce', 'enhance',
+                # 其他通用詞
+                'the', 'and', 'or', 'in', 'on', 'at', 'to', 'for', 'with', 'by', 'from', 'of', 'is', 'are',
+                '的', '和', '或', '在', '於', '為', '與', '由', '從', '是', '有', '沒有'
+            }
+            excluded_keywords.update(common_words)
 
             for word in words:
                 if word.lower() not in excluded_keywords and len(word) > 1:

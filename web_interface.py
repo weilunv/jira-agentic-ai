@@ -98,10 +98,15 @@ class JiraAgenticAI:
                 sorted_results = sorted(results, key=lambda x: x.get('created', ''), reverse=True)
                 print(f"按創建時間排序（最新先）")
                 
+            elif any(keyword in query_lower for keyword in ['我的留言', '我留言', '我的評論', '我評言']):
+                # 按我的評論數降序排序
+                sorted_results = sorted(results, key=lambda x: x.get('my_comment_count', 0), reverse=True)
+                print(f"按我的評論數排序（最多先）：找到 {len([r for r in results if r.get('my_comment_count', 0) > 0])} 個我有留言的任務")
+                
             elif any(keyword in query_lower for keyword in ['留言數', '評論數', '討論', '留言', '評論']):
-                # 按評論數降序排序
+                # 按總評論數降序排序
                 sorted_results = sorted(results, key=lambda x: x.get('comment_count', 0), reverse=True)
-                print(f"按評論數排序（最多先）：找到 {len([r for r in results if r.get('comment_count', 0) > 0])} 個有評論的任務")
+                print(f"按總評論數排序（最多先）：找到 {len([r for r in results if r.get('comment_count', 0) > 0])} 個有評論的任務")
                 
             else:
                 # 預設按更新時間降序排序
@@ -128,7 +133,8 @@ class JiraAgenticAI:
                         "key": result["key"],
                         "summary": result["summary"],
                         "description": (result.get("description") or "")[:200],  # 限制描述長度，處理 None 值
-                        "comments_text": (result.get("comments_text") or "")[:300],  # 新增評論內容，限制長度
+                        "comments_text": (result.get("comments_text") or "")[:300],  # 所有評論內容，限制長度
+                        "my_comments_text": (result.get("my_comments_text") or "")[:200],  # 我的評論內容
                         "assignee": result.get("assignee", ""),
                         "status": result.get("status", ""),
                         "duration_days": result.get("duration_days"),
@@ -136,7 +142,8 @@ class JiraAgenticAI:
                         "originalestimate_hours": result.get("originalestimate_hours"),
                         "created": result.get("created", ""),
                         "resolutiondate": result.get("resolutiondate"),
-                        "comment_count": result.get("comment_count", 0)  # 新增評論數量
+                        "comment_count": result.get("comment_count", 0),  # 總評論數量
+                        "my_comment_count": result.get("my_comment_count", 0)  # 我的評論數量
                     })
 
                 # 任務狀態統計
@@ -183,8 +190,13 @@ class JiraAgenticAI:
                    - 「進行中」：篩選 status 是 "In Progress"、"In Review" 的任務
                    - 重要：如果 resolutiondate 為 null，表示任務未完成；如果有值，表示任務已完成
                 5. 如果查詢涉及評論相關條件：
-                   - 「最多評論」：按 comment_count 降序排列，選擇評論數最多的任務
-                   - 「討論熱烈」：篩選 comment_count > 5 的任務
+                   **我的留言/評論相關：**
+                   - 「我留言最多」、「我的評論最多」：按 my_comment_count 降序排列
+                   - 「我有留言的」：篩選 my_comment_count > 0 的任務
+                   - 「我沒有留言的」：篩選 my_comment_count = 0 的任務
+                   - 「我留言超過X次」：篩選 my_comment_count > X 的任務
+                   **全部留言/評論相關：**
+                   - 「最多評論」、「討論熱烈」：按 comment_count 降序排列，選擇評論數最多的任務
                    - 「無人討論」：篩選 comment_count = 0 的任務
                    - 「評論超過X個」：篩選 comment_count > X 的任務
                 6. 例如「Android 相關工作」只保留包含 "Android" 的任務
@@ -195,7 +207,10 @@ class JiraAgenticAI:
                 - duration_days: 任務從創建到完成的天數
                 - timespent_hours: 實際花費的工時（小時）
                 - originalestimate_hours: 原始估計工時（小時）
-                - comment_count: 任務評論數量
+                - comment_count: 任務總評論數量（所有人的留言）
+                - my_comment_count: 我的評論數量（只統計當前用戶的留言）
+                - comments_text: 所有評論內容
+                - my_comments_text: 我的評論內容
                 - status: 任務狀態（如 "To Do", "In Progress", "Done", "Closed" 等）
                 - resolutiondate: 完成日期（null 表示未完成）
 

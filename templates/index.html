@@ -420,7 +420,8 @@
                         ${issue.timespent_hours !== null ? `<div>🕐 已花費: ${Math.round(issue.timespent_hours * 10) / 10} 小時</div>` : ''}
                         ${issue.originalestimate_hours !== null ? `<div>📊 估計: ${Math.round(issue.originalestimate_hours * 10) / 10} 小時</div>` : ''}
                         ${issue.resolutiondate ? `<div>✅ 完成: ${issue.resolutiondate.substring(0, 10)}</div>` : ''}
-                        ${issue.comment_count !== undefined ? `<div>💬 評論: ${issue.comment_count} 個</div>` : ''}
+                        ${issue.comment_count !== undefined ? `<div>💬 總評論: ${issue.comment_count} 個</div>` : ''}
+                        ${issue.my_comment_count !== undefined && issue.my_comment_count > 0 ? `<div>🗣️ 我的留言: ${issue.my_comment_count} 個</div>` : ''}
                     </div>
                     <a href="${issue.url}" target="_blank" class="issue-link">🔗 查看詳情</a>
                 </div>

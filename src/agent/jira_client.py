@@ -64,20 +64,42 @@ class JiraClient:
                 originalestimate_hours = originalestimate_seconds / 3600 if originalestimate_seconds else None
 
                 # 獲取評論數量和評論內容
-                comment_count = 0
+                comment_count = 0  # 總評論數
+                my_comment_count = 0  # 我的評論數
                 comments_text = ""
+                my_comments_text = ""
+                
                 if hasattr(issue.fields, 'comment') and issue.fields.comment:
                     comment_count = len(issue.fields.comment.comments)
-                    # 收集所有評論內容（限制長度避免 token 過多）
-                    comments_list = []
+                    
+                    # 收集所有評論內容和我的評論內容（限制長度避免 token 過多）
+                    all_comments_list = []
+                    my_comments_list = []
+                    
                     for comment in issue.fields.comment.comments:
                         if hasattr(comment, 'body') and comment.body:
-                            # 每個評論限制 100 字符，總共限制 500 字符
+                            # 每個評論限制 100 字符
                             comment_text = comment.body[:100]
-                            comments_list.append(comment_text)
-                            if len('\n'.join(comments_list)) > 500:
+                            all_comments_list.append(comment_text)
+                            
+                            # 檢查是否為當前用戶的評論
+                            if hasattr(comment, 'author') and comment.author:
+                                # 比較評論作者的 email 或 name
+                                author_email = getattr(comment.author, 'emailAddress', '')
+                                author_name = getattr(comment.author, 'name', '')
+                                
+                                if (author_email == self.username or 
+                                    author_name == self.username or 
+                                    author_email == self.username.split('@')[0]):
+                                    my_comment_count += 1
+                                    my_comments_list.append(comment_text)
+                            
+                            # 限制總長度
+                            if len('\n'.join(all_comments_list)) > 500:
                                 break
-                    comments_text = '\n'.join(comments_list)
+                    
+                    comments_text = '\n'.join(all_comments_list)
+                    my_comments_text = '\n'.join(my_comments_list)
 
                 issue_data = {
                     'key': issue.key,
@@ -98,8 +120,10 @@ class JiraClient:
                     'originalestimate_hours': originalestimate_hours,
                     'duration_days': duration_days,  # 已完成任務的持續天數
                     'processing_days': processing_days,  # 未完成任務的處理天數
-                    'comment_count': comment_count,
-                    'comments_text': comments_text,  # 新增評論內容
+                    'comment_count': comment_count,  # 總評論數
+                    'my_comment_count': my_comment_count,  # 我的評論數
+                    'comments_text': comments_text,  # 所有評論內容
+                    'my_comments_text': my_comments_text,  # 我的評論內容
                     'timetracking': {
                         'originalEstimate': getattr(timetracking, 'originalEstimate', None) if timetracking else None,
                         'remainingEstimate': getattr(timetracking, 'remainingEstimate', None) if timetracking else None,
